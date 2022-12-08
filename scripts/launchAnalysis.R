@@ -239,6 +239,7 @@ split_svdMatrix(svdMatrix <- svdMatrix,
 
 
 inputMatrix <- read_csv("data/Chla_BBP_data/svdMatrix_timeseries_all_variables.csv")
+inputMatrix <- svdMatrix_Pac
 clusters<-read_csv("data/weightings_clusters_all.csv")
 
 # si inputMatrix et clusters pas la même taille : remet de la même taille

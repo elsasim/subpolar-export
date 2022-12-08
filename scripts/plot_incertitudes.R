@@ -8,7 +8,7 @@ zp_data <- read_csv("data/all/zp_data_all.csv") %>% arrange(cluster)
 mld_data <- read_csv("data/all/mld_data_all.csv") %>% arrange(cluster)
 mask_data <- read_csv("data/all/mask_data_all.csv") %>% arrange(cluster)%>% filter(PARAM == "Cphyto_masked")
 
-incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld) {
+incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld, depth_seq, depth_layers) {
   
   # sd_tot_0_800 <- vector()
   # sd_tot_100_800 <- vector()
@@ -24,9 +24,9 @@ incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld) {
           print(paste("incertitude cluster", i))
           
           sd_profile_data <- POC_sd %>%
-            filter(cluster == i)
-            # left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
-            # left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+            filter(cluster == i) %>%
+            left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+            left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) 
             # left_join(mask_data %>% dplyr::select(jDay, PRES, POC_mask = value, cluster), by = c("jDay", "PRES", "cluster"))
 
           
@@ -37,8 +37,8 @@ incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld) {
           
           depths = sd_profile_data$PRES
           dates = sd_profile_data$jDay
-          # zp = sd_profile_data$zp
-          # mld = sd_profile_data$mld
+          zp = sd_profile_data$zp
+          mld = sd_profile_data$mld
           # POC_mask = sd_profile_data$POC_mask
       
           # if(i==1){
@@ -69,10 +69,10 @@ incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld) {
 
 
           
-          depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
+          # depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
           # depth_seq_below_PPZ <- which( numbers_only(depth_seq) )
           # 
-          depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
+          # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
           # depth_layers <- c("whole_column","productive_layer","depth_0_100","depth_100_200","depth_200_300","depth_300_400","depth_400_500","depth_500_600","depth_600_700","depth_700_800" )
           # deepest_depth_layer <- depth_layers[which(depth_seq == max_depth_to_consider)]
           # shallowest_depth_layer <- depth_layers[which(depth_seq == 0)]
@@ -137,7 +137,7 @@ incertitudes_tot_POC <- function(POC_sd, window=30, depth_bin, i, zp, mld) {
 
 
 
-incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, mld) {
+incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, mld, depth_seq, depth_layers) {
   
   # sd_tot_0_800 <- vector()
   # sd_tot_100_800 <- vector()
@@ -153,9 +153,9 @@ incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, m
   print(paste("incertitude cluster", i))
   
   sd_profile_data <- AOU_sd %>%
-    filter(cluster == i)
-    # left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
-    # left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+    filter(cluster == i) %>%
+    left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+    left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) 
     # left_join(mask_data %>% dplyr::select(jDay, PRES, POC_mask = value, cluster), by = c("jDay", "PRES", "cluster"))
   
   
@@ -165,8 +165,8 @@ incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, m
   
   depths = sd_profile_data$PRES
   dates = sd_profile_data$jDay
-  # zp = sd_profile_data$zp
-  # mld = sd_profile_data$mld
+  zp = sd_profile_data$zp
+  mld = sd_profile_data$mld
   # POC_mask = sd_profile_data$POC_mask
   
   # if(i==1){
@@ -197,10 +197,10 @@ incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, m
   
   
   
-  depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
+  # depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
   # depth_seq_below_PPZ <- which( numbers_only(depth_seq) )
   # 
-  depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
+  # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
   # depth_layers <- c("whole_column","productive_layer","depth_0_100","depth_100_200","depth_200_300","depth_300_400","depth_400_500","depth_500_600","depth_600_700","depth_700_800" )
   # deepest_depth_layer <- depth_layers[which(depth_seq == max_depth_to_consider)]
   # shallowest_depth_layer <- depth_layers[which(depth_seq == 0)]
