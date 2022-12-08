@@ -1,0 +1,7 @@
+*.csv
+/figures/
+/data/
+/.Rproj.user/
+/support/
+.Rhistory
+*.png
