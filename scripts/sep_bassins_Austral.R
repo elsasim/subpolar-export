@@ -19,7 +19,7 @@ float_positions <- float_positions %>%
 
 split_svdMatrix_Austral <- function(svdMatrix,float_positions,outputname){
   
-  svdMatrix<- read_csv("data/Chla_BBP_data/svdMatrix_timeseries_all_variables.csv")
+  svdMatrix<- read_csv("data/Chla_BBP_data/svdMatrix_timeseries_CHLA_BBP_MLD_Zeu_Zp.csv")
   
   floats<-float_positions$floatID
   floats_Ind <- float_positions %>% filter(bassin=="Indien") %>% select(floatID) 

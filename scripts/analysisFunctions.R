@@ -104,6 +104,7 @@ interpolateData <- function(inputDirectory = "data/finalCSV/",
           #Vertically interpolate CHLA and BBP700 values
           dplyr::group_by(jDay,PARAM) %>%
           dplyr::mutate(VALUE = na.fill(VALUE,fill="extend")) %>%
+          ungroup() %>%
           #Horizontally interpolate CHLA and BBP700 values
           dplyr::group_by(PRES,PARAM) %>%
           dplyr::mutate(VALUE = na.fill(VALUE,fill="extend")) %>% 
@@ -654,19 +655,19 @@ plotMaker <- function(plotData,
     plotTemp <- plotData[plotData$PARAM == unique(plotData$PARAM)[i],]
     
     avgPlot<-ggplot() +
-      scale_x_reverse(expand=c(0,0),limits=c(350,0)) + 
+      scale_x_reverse(expand=c(0,0),limits=c(1000,0)) + 
       scale_y_continuous(expand=c(0,0)) +
       coord_flip() + 
       geom_tile(data = plotTemp,
                 aes(x = PRES,
                     y = month,
                     fill = value)) +
-      scale_fill_distiller(palette = "Spectral", 
-                           breaks = c(220,250,300,320),
-                           limits=c(220,320),
-                           oob = scales::squish,
-                           labels = c("<220","250","300","320"),
-                           name = expression(AOU(µmol~kg^-1))
+      scale_fill_distiller(palette = "Spectral"
+                           # breaks = c(220,250,300,320),
+                           # limits=c(220,320),
+                           # oob = scales::squish,
+                           # labels = c("<220","250","300","320"),
+                           # name = expression(AOU(µmol~kg^-1))
                            ) +
       facet_wrap(~factor(cluster),ncol=3) +
       theme(legend.title = element_text(size = 10),
@@ -825,7 +826,7 @@ plotMaker <- function(plotData,
 
     ggsave(plot = avgPlot,
            paste("figures/",unique(plotData$PARAM)[i],outputname,".png",sep=""),
-           width = 11.5, height = 5)
+           width = 11.5, height = 3)
   }
 }
 

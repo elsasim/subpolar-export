@@ -40,7 +40,7 @@ require(graphics)
 ###tsDepth: maximum depth to be included in timeseries.
 ###plot: If TRUE, function will save a plot of timeseries data for each parameter
 
-interpolateData(params=c("BBP700","CHLA_recal","SIG","TEMP","PSAL","zeta"),
+interpolateData(params=c("BBP700","CHLA_recal","ISO_01","MLD_003"),
                 inputDirectory = "data/Chla_BBP_data/files_POC/",
                 tsDepth=1000,plot=F)
 
@@ -337,10 +337,10 @@ Kheireddine_2020_processing_AOU (values, depths, dates, zp, depth_bin, mld, metr
 
 
 # get data
-DEP <- read_csv("data/DEP_data_all.csv")
-MLD <- read_csv("data/mld_data_all.csv")
-ISO_1 <- read_csv("data/ISO_data_all.csv")
-ZP <- read_csv("data/zp_data_all.csv")
+DEP <- read_csv("data/DEP_data_all.csv") %>% filter(cluster==1|cluster==2|cluster==3)
+MLD <- read_csv("data/mld_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
+ISO_1 <- read_csv("data/ISO_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
+ZP <- read_csv("data/zp_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
 
 ZP_timings_max <- ZP %>%
   group_by(cluster) %>%
@@ -364,7 +364,7 @@ plotData <-read_csv("data/all/mask_data_all.csv")
 plotData <-read_csv("data/all/DOXY_data_all.csv")
 plotData <-read_csv("data/all/POC_data_all.csv")
 plotData <-read_csv("data/all/profile_data_all.csv")
-plotData <- read_csv("data/plotData.csv") %>% filter(PARAM == "BBP700" | PARAM == "CHLA_recal")
+plotData <- read_csv("data/plotData_Pac.csv") %>% filter(PARAM == "BBP700" | PARAM == "CHLA_recal" | PARAM == "POC_Koestner")
 plotData <- read_csv("data/DOXY/plotData.csv") %>% filter(PARAM == "DOXY")
 
 
