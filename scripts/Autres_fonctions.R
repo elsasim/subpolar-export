@@ -185,23 +185,24 @@ TS_NB$sixClusters[which(TS_NB$floatID %in% Med)]
 
 split_svdMatrix <- function(svdMatrix,weightings_clusters,outputname){
       floats<-weightings_clusters$floatID
-      BL <- vector()
-      for (i in 4:length(colnames(svdMatrix))){
-        print(i)
-        if(colnames(svdMatrix)[i] %in% floats == FALSE){
-          BL[i]<- colnames(svdMatrix)[i]
-        }
-      }
-      BL <- BL[!is.na(BL)]
-      svdMatrix <- svdMatrix %>% select(-BL)
+      # BL <- vector()
+      # for (i in 4:length(colnames(svdMatrix))){
+      #   print(i)
+      #   if(colnames(svdMatrix)[i] %in% floats == FALSE){
+      #     BL[i]<- colnames(svdMatrix)[i]
+      #   }
+      # }
+      # BL <- BL[!is.na(BL)]
+      
+      svdMatrix <- svdMatrix %>% select(jDay, PRES, PARAM, floats[-c(51,52,67,68,83,125,182,240,242,237)])
       # svdMatrix_final<-svdMatrix[, apply(svdMatrix, 2, function(x) !all(is.na(x)))]
       #svdMatrix_final<-cbind(svdMatrix[,1:2:3],svdMatrix_final)
       write_csv(svdMatrix,outputname)
 }
     
-split_svdMatrix(svdMatrix<- read_csv("data/svdMatrix_timeseries_DOXY_AOU.csv"),
-                weightings_clusters<-read_csv("data/weightings_clusters_HL.csv"),
-                outputname <- "data/svdMatrix_timeseries_DOXY_HL.csv")
+split_svdMatrix(svdMatrix<- read_csv("data/svdMatrix_timeseries_MLD_ISO.csv"),
+                weightings_clusters<-read_csv("data/weightings_clusters_all.csv"),
+                outputname <- "data/svdMatrix_timeseries_MLD_ISO_HL.csv")
 ######################################################################################
 ######################################################################################
 ###############################################################################

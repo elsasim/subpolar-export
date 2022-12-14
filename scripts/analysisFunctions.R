@@ -200,7 +200,7 @@ interpolateData <- function(inputDirectory = "data/finalCSV/",
                 longitude = median(longitude,na.rm=TRUE))
 
     write_csv(metaData,
-              "data/timeseries_metadata_env.csv")
+              "data/timeseries_metadata_MLD_ISO.csv")
   }
 
   if(matrixType=="profiles"){
@@ -612,7 +612,7 @@ plotPrep <- function(data,clusters,scale=FALSE){
       group_by(cluster,PARAM) %>% 
       mutate(value = value/sqrt(sum(value^2)/(length(value)-1)))
   }
-  write_csv(output,"data/plotData.csv")
+  write_csv(output,"data/plotData_Ind.csv")
 }
 ################################################################################
 ################################################################################

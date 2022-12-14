@@ -40,7 +40,7 @@ require(graphics)
 ###tsDepth: maximum depth to be included in timeseries.
 ###plot: If TRUE, function will save a plot of timeseries data for each parameter
 
-interpolateData(params=c("BBP700","CHLA_recal","ISO_01","MLD_003"),
+interpolateData(params=c("BBP700","CHLA_recal","ISO_1","MLD_003"),
                 inputDirectory = "data/Chla_BBP_data/files_POC/",
                 tsDepth=1000,plot=F)
 
@@ -238,8 +238,8 @@ split_svdMatrix(svdMatrix <- svdMatrix,
 ###in regions characterized by low parameter values
 
 
-inputMatrix <- read_csv("data/Chla_BBP_data/svdMatrix_timeseries_all_variables.csv")
-inputMatrix <- svdMatrix_Pac
+inputMatrix <- read_csv("data/svdMatrix_timeseries_MLD_ISO_HL.csv")
+inputMatrix <- svdMatrix_Ind
 clusters<-read_csv("data/weightings_clusters_all.csv")
 
 # si inputMatrix et clusters pas la même taille : remet de la même taille
@@ -358,7 +358,11 @@ ZP_timings_min <- ZP %>%
 timings <- left_join(ZP_timings_max,ZP_timings_min, by=c("cluster"))
 timings <- left_join(timings,slopes_AOU, by=c("cluster"))
 
+plotData <- read_csv("data/sep_Austral/env/plotData_Atl.csv") 
 
+ISO_1 <- read_csv("data/sep_Austral/env/plotData_Atl.csv") %>% filter(PARAM == "ISO_01")
+MLD <- read_csv("data/sep_Austral/env/plotData_Atl.csv") %>% filter(PARAM == "MLD_003")
+DEP <- read_csv("data/ISO_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
 # charger fichier en fonction de ce qu'on veut ploter
 plotData <-read_csv("data/all/mask_data_all.csv")
 plotData <-read_csv("data/all/DOXY_data_all.csv")

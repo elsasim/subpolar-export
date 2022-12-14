@@ -219,7 +219,9 @@ incertitudes_tot_AOU <- function(AOU_sd, window=30,i, SIG_data, depth_bin, zp, m
         max_depth_to_keep <- str_split(gsub("depth_", "", depth_layer), "_", simplify = T)[,2]
         index <- which(between(df$depths_below_zp, min_depth_to_keep, max_depth_to_keep))
       }
-      sqrt(sum((values[index])^2)) # The integration
+      # sqrt(sum((values[index])^2)) # The integration
+      (mean(df$values[index]))
+      
     })
     
     data.frame(df[1,], layer_name = depth_layers, layer = depth_seq, I = integrated_values, row.names = NULL)

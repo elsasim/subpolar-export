@@ -546,6 +546,7 @@ AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
     depth_bin = 50
     SIG <- DOXY_profile_data$SIG +1000
     values <- DOXY_profile_data$value * SIG
+    depths_below_zp = round(depths-zp)
     
     # definir prof max sous zp pour le cluster
     prof_max <- 1000-max(zp)
@@ -555,20 +556,50 @@ AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
       depth_seq <- c("whole_column", "productive_layer", seq(0, 850-depth_bin, by = depth_bin))
       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 850, sep = "_"), depth_seq)
       
+      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
+      
     }else if(prof_max>800){
       # analyse
       depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
+      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
       
     }else if(prof_max<800){
       # analyse
       depth_seq <- c("whole_column", "productive_layer", seq(0, 650-depth_bin, by = depth_bin))
       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 650, sep = "_"), depth_seq)}
+      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)}
     
-    data_list_O2 <- data.frame(values, depths, dates, zp, mld) %>% 
-      mutate(depths_below_zp = depths-zp) %>% 
-      split(f = .$dates)
+      
+    data_list_O2 <- data.frame(values, depths, dates, zp, mld, depths_below_zp) %>% 
+      arrange(depths_below_zp) %>%
+      filter(between(depths_below_zp,0,as.numeric(last(depth_seq)))) %>%
+      # dplyr::mutate(depths_below_zp = round(depths-zp)) %>% 
+      split(f = .$depths_below_zp)
     
+   resp_each_depth <- data_list_O2 %>% llply(function(x){
+      metrics <- data.frame(x) %>%
+      dplyr::mutate(smoothed_values = smth(values, window = window, alpha = 2.5, method = "gaussian", tails = T)) %>%
+      dplyr::summarise(values=values,
+                       dates=dates,
+                       min_y = min(smoothed_values, na.rm=T),
+                       max_y = max(smoothed_values, na.rm=T),
+                       min_x = match(min(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(),
+                       max_x = match(max(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(),
+                       Dprod = if(min_x>max_x){Dprod = 365 + max_x - min_x}
+                       else if(min_x<max_x){Dprod = max_x - min_x}) %>%
+        filter(between(dates,unique(max_x),unique(min_x))) %>%
+        dplyr::mutate(if(min_x>max_x){slope = tidy(lm(values~ dates, data = .))$estimate[2]})
+        
+       
+      # each_layer_slope <- metrics %>% 
+
+              # * (1/1.45) *10^-3 *12})
+      # dplyr::mutate(slope_annual = slope * Dprod) %>%
+      # dplyr::filter(DEPTH!= "whole_column" & DEPTH!= "productive_layer") %>% 
+      # dplyr::arrange(DEPTH)})
+      })
+      
     values_per_layers_O2 <- data_list_O2 %>% ldply(function(df) {
       
       integrated_values_O2 <- laply(depth_layers, function(depth_layer) {
@@ -579,8 +610,8 @@ AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
           max_depth_to_keep <- str_split(gsub("depth_", "", depth_layer), "_", simplify = T)[,2]
           index <- which(between(df$depths_below_zp, min_depth_to_keep, max_depth_to_keep))
         }
-        (df$values[index] * {c( diff(df$depths[index]), diff(df$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T)
-        # (mean(df$values[index]))
+        # (df$values[index] * {c( diff(df$depths[index]), diff(df$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T)
+        (mean(df$values[index]))
       })
       
       data.frame(df[1,], layer_name = depth_layers, DEPTH = depth_seq, I = integrated_values_O2, row.names = NULL)
@@ -603,8 +634,8 @@ AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
                        max_y = max(smoothed_I, na.rm=T),
                        min_x = match(min(smoothed_I, na.rm=T),smoothed_I),
                        max_x = match(max(smoothed_I, na.rm=T),smoothed_I),
-                       Dprod = if(min_x>max_x){Dprop = 365 + max_x - min_x}
-                       else if(min_x<max_x){Dprop = max_x - min_x},
+                       Dprod = if(min_x>max_x){Dprod = 365 + max_x - min_x}
+                       else if(min_x<max_x){Dprod = max_x - min_x},
                        slope = if(min_x>max_x){slope = (max_y - min_y) / (365 + max_x - min_x) * (1/1.45) *10^-3 *12}
                        else if(min_x<max_x){slope = (max_y - min_y) / (max_x - min_x) * (1/1.45) *10^-3 *12}) %>%
       dplyr::ungroup() %>%
@@ -618,8 +649,8 @@ AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
     
     iAOU <- iAOU %>%
       dplyr::group_by(DEPTH) %>%
-      dplyr::mutate(incert_min = sd_tot %>% filter(dates == min_x & layer == DEPTH ) %>% select(smoothed_I) %>% as.numeric(),
-                    incert_max = sd_tot %>% filter(dates == max_x & layer == DEPTH ) %>% select(smoothed_I)%>% as.numeric(),
+      dplyr::mutate(incert_min = sd_tot %>% filter(dates == min_x & layer == DEPTH ) %>% dplyr::select(smoothed_I) %>% as.numeric(),
+                    incert_max = sd_tot %>% filter(dates == max_x & layer == DEPTH ) %>% dplyr::select(smoothed_I)%>% as.numeric(),
                     min_sd_low = min_y - incert_min,
                     min_sd_high = min_y + incert_min,
                     max_sd_low = max_y - incert_max,
