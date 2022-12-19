@@ -86,7 +86,7 @@ reassign <- function(metaData,weightings_clusters,cluster_BL){
 
 ########################################################################################
 #séparer matrices pour HL et BL avec cluster 1 et 2
-weightings_clusters<-read_csv("data/weightings_clusters_TOT.csv")
+weightings_clusters<-read_csv("data/weightings_clusters_all.csv")
 svdWeightings<-read.csv("data/weightings_TOT.csv")
 
 split_HL_BL <- function(weightings_clusters,svdWeightings,cluster_BL,cluster_HL){
@@ -193,8 +193,9 @@ split_svdMatrix <- function(svdMatrix,weightings_clusters,outputname){
       #   }
       # }
       # BL <- BL[!is.na(BL)]
+      svdMatrix <- inputMatrix %>% select(jDay, PRES, PARAM, floats)
       
-      svdMatrix <- svdMatrix %>% select(jDay, PRES, PARAM, floats[-c(51,52,67,68,83,125,182,240,242,237)])
+      svdMatrix_temp <- svdMatrix %>% select(jDay, PRES, PARAM, floats)
       # svdMatrix_final<-svdMatrix[, apply(svdMatrix, 2, function(x) !all(is.na(x)))]
       #svdMatrix_final<-cbind(svdMatrix[,1:2:3],svdMatrix_final)
       write_csv(svdMatrix,outputname)

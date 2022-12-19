@@ -612,7 +612,7 @@ plotPrep <- function(data,clusters,scale=FALSE){
       group_by(cluster,PARAM) %>% 
       mutate(value = value/sqrt(sum(value^2)/(length(value)-1)))
   }
-  write_csv(output,"data/plotData_Ind.csv")
+  write_csv(output,"data/plotData.csv")
 }
 ################################################################################
 ################################################################################
@@ -826,7 +826,7 @@ plotMaker <- function(plotData,
 
     ggsave(plot = avgPlot,
            paste("figures/",unique(plotData$PARAM)[i],outputname,".png",sep=""),
-           width = 11.5, height = 3)
+           width = 11.5, height = 6)
   }
 }
 

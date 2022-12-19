@@ -238,8 +238,8 @@ split_svdMatrix(svdMatrix <- svdMatrix,
 ###in regions characterized by low parameter values
 
 
-inputMatrix <- read_csv("data/svdMatrix_timeseries_MLD_ISO_HL.csv")
-inputMatrix <- svdMatrix_Ind
+inputMatrix <- read_csv("data/DOXY/svdMatrix_timeseries_DOXY.csv")
+# inputMatrix <- svdMatrix_Ind
 clusters<-read_csv("data/weightings_clusters_all.csv")
 
 # si inputMatrix et clusters pas la même taille : remet de la même taille
@@ -337,10 +337,10 @@ Kheireddine_2020_processing_AOU (values, depths, dates, zp, depth_bin, mld, metr
 
 
 # get data
-DEP <- read_csv("data/DEP_data_all.csv") %>% filter(cluster==1|cluster==2|cluster==3)
-MLD <- read_csv("data/mld_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
-ISO_1 <- read_csv("data/ISO_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
-ZP <- read_csv("data/zp_data_all.csv")%>% filter(cluster==1|cluster==2|cluster==3)
+DEP <- read_csv("data/DEP_data_all.csv")
+MLD <- read_csv("data/mld_data_all.csv")
+ISO_1 <- read_csv("data/ISO_data_all.csv")
+ZP <- read_csv("data/zp_data_all.csv")
 
 ZP_timings_max <- ZP %>%
   group_by(cluster) %>%
