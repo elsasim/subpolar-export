@@ -650,24 +650,23 @@ plotMaker <- function(plotData,
   }
   
   
-  require(RColorBrewer)
   for(i in 1:length(unique(plotData$PARAM))){
     plotTemp <- plotData[plotData$PARAM == unique(plotData$PARAM)[i],]
     
     avgPlot<-ggplot() +
-      scale_x_reverse(expand=c(0,0),limits=c(1000,0)) + 
+      scale_x_reverse(expand=c(0,0),limits=c(1000,0)) +
       scale_y_continuous(expand=c(0,0)) +
-      coord_flip() + 
+      coord_flip() +
       geom_tile(data = plotTemp,
                 aes(x = PRES,
                     y = month,
                     fill = value)) +
-      scale_fill_distiller(palette = "Spectral"
-                           # breaks = c(220,250,300,320),
-                           # limits=c(220,320),
-                           # oob = scales::squish,
-                           # labels = c("<220","250","300","320"),
-                           # name = expression(AOU(µmol~kg^-1))
+      scale_fill_distiller(palette = "Spectral",
+                          breaks = c(-0.02,0,0.02),
+                          limits=c(-0.02,0.02),
+                          oob = scales::squish,
+                          labels = c("<-0.02","0",">0.02"),
+                          name = expression(O2~rates(µmol~kg^-1~d^1))
                            ) +
       facet_wrap(~factor(cluster),ncol=3) +
       theme(legend.title = element_text(size = 10),
@@ -684,6 +683,41 @@ plotMaker <- function(plotData,
             panel.border = element_rect(fill = NA)) +
       labs(x = "Depth (m)", y = "relative Month",
            fill = unique(plotData$PARAM)[i])
+    
+    # avgPlot<-ggplot() +
+    #   scale_x_reverse(expand=c(0,0),limits=c(1000,0)) + 
+    #   scale_y_continuous(expand=c(0,0)) +
+    #   coord_flip() + 
+    #   geom_tile(data = plotTemp,
+    #             aes(x = PRES,
+    #                 y = month,
+    #                 fill = value)) +
+    #   scale_fill_gradient2(midpoint = 0,
+    #                         low = "blue",
+    #                         mid = "white",
+    #                         high = "red",
+    #                         space = "Lab",
+    #                        breaks = c(-0.1,0,0.1),
+    #                        limits=c(-0.1,0.1),
+    #                        oob = scales::squish,
+    #                        labels = c("<-0.1","0",">0.1"),
+    #                        name = expression(O2~rates(µmol~kg^-1~d^1))
+    #   ) +
+    #   facet_wrap(~factor(cluster),ncol=3) +
+    #   theme(legend.title = element_text(size = 10),
+    #         legend.text = element_text(size = 10),
+    #         panel.grid.major = element_blank(),
+    #         panel.grid.minor = element_blank(),
+    #         strip.background = element_blank(),
+    #         plot.title = element_text(hjust = 0.5,face="bold",size=12),
+    #         strip.text = element_text(face="bold",size=12),
+    #         axis.text = element_text(size = 10),
+    #         axis.title = element_text(size = 12),
+    #         #axis.title = element_blank(),
+    #         #axis.ticks.x = element_blank(),
+    #         panel.border = element_rect(fill = NA)) +
+    #   labs(x = "Depth (m)", y = "relative Month",
+    #        fill = unique(plotData$PARAM)[i])
     
     if(legend==FALSE){
       avgPlot = avgPlot +
