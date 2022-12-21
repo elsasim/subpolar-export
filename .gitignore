@@ -9,9 +9,10 @@
 /figures/parameterTestPlots/
 /figures/parProfiles_Est+Meas/
 /figures/plots/
+/figures/sep_basin/
 /data/
 /.Rproj.user/
 /support/
 .Rhistory
-/figures/
-*.png
+
+

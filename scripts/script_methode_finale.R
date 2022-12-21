@@ -205,7 +205,7 @@ POC_flux <- function(profile_data, zp_data, mld_data, metrics, window, POC_sd){
     month = all_data$month
     zp = all_data$zp
     mld = all_data$mld
-    depth_bin = 50
+    depth_bin = 100
     
     metrics_cluster <- metrics %>% filter(cluster == i)
     
@@ -302,7 +302,8 @@ POC_flux <- function(profile_data, zp_data, mld_data, metrics, window, POC_sd){
                     slope_max = (max_sd_high - min_sd_low) / (max_x - min_x) * 10^3,
                     slope_min = (max_sd_low - min_sd_high) / (max_x - min_x) * 10^3) %>%
       ungroup() %>%
-      dplyr::mutate(cluster = i)
+      dplyr::mutate(cluster = i,
+                    Teff = slope_annual / slope_annual[1])
     
     
     
@@ -468,6 +469,27 @@ POC_flux <- function(profile_data, zp_data, mld_data, metrics, window, POC_sd){
     # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
     scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
     scale_y_continuous(name = expression(paste(Annual~carbon~flux,"  [",g~C~m^{-2}~y^{-1},"]")), expand = c(0,0),limits = c(0,10)) +
+    coord_flip() +
+    # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
+    theme_bw() +
+    theme(axis.text = element_text(size = 11, colour = "black"),
+          axis.title = element_text(size = 11, colour = "black"),
+          axis.text.x=element_text(angle=0),
+          plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
+    scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+                      labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
+    scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+                        labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
+  
+  Teff_plots_annual <- ggplot(data = slopes_final, aes(x = DEPTH, y = Teff, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
+    # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
+    geom_point() +
+    geom_line() +
+    # geom_point(shape=21, fill = colors, size=2) +
+    # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
+    # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
+    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0.01,0.01), limits = c(850,0)) +
+    scale_y_continuous(name = expression(paste(Teff,"  [%]")), expand = c(0.01,0.01),limits = c(0,1)) +
     coord_flip() +
     # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
     theme_bw() +
@@ -736,21 +758,18 @@ AOU_flux(data_DOXY = read_csv("data/DOXY/plotData.csv") %>% arrange(cluster),
          mld_data = read_csv("data/mld_data_all.csv") %>% arrange(cluster),
          SIG_data = read_csv("data/Chla_BBP_data/plotData_env.csv") %>% filter(PARAM == "SIG") %>% arrange(cluster),
          # metrics = read_csv("data/metrics_cluster.csv") %>% arrange(cluster),
-         window = 30,
-         AOU_sd = read_csv("data/DOXY/plotData_sd_AOU.csv") %>% arrange(cluster))
+         window = 30)
 
-DOXY_climato_flux(data_DOXY = read_csv("data/plotData_climato_DOXY.csv") %>% arrange(cluster),
+DOXY_climato_flux(data_DOXY = read_csv("data/DOXY/plotData_climato_DOXY.csv") %>% arrange(cluster),
          zp_data = read_csv("data/zp_data_all.csv") %>% arrange(cluster),
          mld_data = read_csv("data/mld_data_all.csv") %>% arrange(cluster),
          SIG_data = read_csv("data/Chla_BBP_data/plotData_env.csv") %>% filter(PARAM == "SIG") %>% arrange(cluster),
          # metrics = read_csv("data/metrics_cluster.csv") %>% arrange(cluster),
-         window = 30,
-         AOU_sd = read_csv("data/DOXY/plotData_sd_AOU.csv") %>% arrange(cluster))
+         window = 30)
 
 
 DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
   
-  I_plots <- list()
   names <- c("(1) Austral HCB","(2) Austral MCB","(3) STZ","(4) PN","(5) AN")
   
   for (i in 1:length(unique(data_DOXY$cluster))){
@@ -771,7 +790,7 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
     month = DOXY_profile_data$month
     zp = DOXY_profile_data$zp
     mld = DOXY_profile_data$mld
-    depth_bin = 50
+    depth_bin = 100
     SIG <- DOXY_profile_data$SIG +1000
     values <- DOXY_profile_data$value * SIG
     depths_below_zp = round(depths-zp)
@@ -831,12 +850,22 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
                         slope_annual = slopes * Dprod)
       })
     
+    # timing de la periode productive
+    timings <- resp_each_depth %>% ldply(function(x){
+      values_to_plot <- data.frame(x) %>%
+        dplyr::summarise(max_x = unique(max_x),
+                         min_x = unique(min_x_recal))
+    })
+    names(timings)[1] <- "PRES"
+    timings$PRES <- as.numeric(timings$PRES)
+    timings <- timings %>% dplyr::mutate(cluster=i)
+    
+    # recap des slopes journalières et annuelles
     respiration <- resp_each_depth %>% ldply(function(x){
       values_to_plot <- data.frame(x) %>%
         dplyr::summarise(R = unique(slopes),
                          annual_R = unique(slope_annual))
     })
-    
     names(respiration)[1] <- "depths"
     respiration$depths <- as.numeric(respiration$depths)
     respiration <- respiration %>% dplyr::mutate(cluster=i)
@@ -855,6 +884,8 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
         ANCP$depth[l] <- min_depth_to_keep
         ANCP$ANCP[l] <- (respiration$annual_R[index] * {c( diff(respiration$depths[index]), diff(respiration$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T)*10^-3 #gC/m2/an
       }
+      
+      ANCP$Teff <- ANCP$ANCP / ANCP$ANCP[3]
     }
     
     # agreger les slopes ensemble a chaque iterration pour avoir un fichier final
@@ -863,15 +894,18 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
     if(i==1){
       slopes_final <- ANCP
       resp_final <- respiration
+      timings_all <- timings
     }
     
     if(i!=1){
       slopes_final <- bind_rows(slopes_final, ANCP)
       resp_final <- bind_rows(resp_final, respiration)
+      timings_all <- bind_rows(timings_all, timings)
     }
     
   }
   slopes_final <- drop_na(slopes_final)
+  timings_all <- drop_na(timings_all)
   
   resp_each_depth_plot <- ggplot(data = resp_final, aes(x = depths, y = R, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
     geom_line() +
@@ -941,6 +975,27 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
                       labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
     scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
                         labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
+  
+  Teff_plots_annual <- ggplot(data = slopes_final, aes(x = depth, y = Teff, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
+    # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
+    geom_point() +
+    geom_line() +
+    # geom_point(shape=21, fill = colors, size=2) +
+    # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
+    # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
+    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
+    scale_y_continuous(name = expression(paste(Teff,"  [%]")), expand = c(0,0),limits = c(0,1)) +
+    coord_flip() +
+    # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
+    theme_bw() +
+    theme(axis.text = element_text(size = 11, colour = "black"),
+          axis.title = element_text(size = 11, colour = "black"),
+          axis.text.x=element_text(angle=0),
+          plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
+    scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+                      labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
+    scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+                        labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
 
   
   ggsave(plot = Att_plots,"figures/Att_plots_DOXY_climato.png", width = 6, height = 6, dpi = 300)
@@ -954,8 +1009,8 @@ DOXY_climato_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AO
 
 
 
-O2_POC <- function(slopes_DOXY = read_csv("data/slopes/slopes_DOXY_climato.csv", show_col_types = F) %>% arrange(depth),
-                   slopes_POC = read_csv("data/slopes/slopes_POC.csv", show_col_types = F) %>% arrange(DEPTH)){
+O2_POC <- function(slopes_DOXY = read_csv("data/slopes_DOXY_climato.csv", show_col_types = F) %>% arrange(depth),
+                   slopes_POC = read_csv("data/slopes_POC.csv", show_col_types = F) %>% arrange(DEPTH)){
   
   Rsub_Att <- data.frame(slopes_POC = slopes_POC$slope,
                # slope_min_POC = slopes_POC$slope_min,
@@ -1013,13 +1068,13 @@ O2_POC <- function(slopes_DOXY = read_csv("data/slopes/slopes_DOXY_climato.csv",
   Rsub_Att <- Rsub_Att%>%
     mutate(ratio = slope_annual_POC/slope_annual_AOU * 100) %>% arrange(cluster) 
     # mutate(clust_name = c(rep("(1) Austral HCB",8),rep("(2) Austral MCB",8),rep("(3) STZ",8),rep("(4) PN",8),rep("(5) AN",8))) %>%
-    filter(slopes_POC>0)
+
   
   ratio_plot_annual <- ggplot(data = Rsub_Att, aes(x = as.numeric(prof), y = ratio, color = factor(cluster))) +
     geom_point(aes(colour = factor(cluster))) +
     geom_line(aes(colour = factor(cluster))) +
-    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(800,0)) +
-    scale_y_continuous(name = paste("contribution des petites particules à l'export TOT annuel [%]"), expand = c(0,0),limits = c(0,40)) +
+    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0.01,0.01), limits = c(750,0)) +
+    scale_y_continuous(name = paste("contribution des petites particules à l'export TOT annuel [%]"), expand = c(0.01,0.01),limits = c(0,55)) +
     coord_flip() +
     theme_bw() +
     scale_color_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
@@ -1029,7 +1084,6 @@ O2_POC <- function(slopes_DOXY = read_csv("data/slopes/slopes_DOXY_climato.csv",
       legend.title = element_blank())
   
   ggsave(plot = ratio_plot_annual,"figures/small_TOT_VS_depths_annual.png", width = 6, height = 6, dpi = 300)
-  ggsave(plot = resp_plot_days,"figures/small_TOT_VS_depths_days.png", width = 6, height = 6, dpi = 300)
 }
 
 O2_POC()

@@ -662,11 +662,11 @@ plotMaker <- function(plotData,
                     y = month,
                     fill = value)) +
       scale_fill_distiller(palette = "Spectral",
-                          breaks = c(-0.02,0,0.02),
-                          limits=c(-0.02,0.02),
+                          breaks = c(-5,0,5),
+                          limits=c(-5,5),
                           oob = scales::squish,
-                          labels = c("<-0.02","0",">0.02"),
-                          name = expression(O2~rates(µmol~kg^-1~d^1))
+                          labels = c("<-5","0",">5"),
+                          name = expression(DOXY~anomaly(µmol~kg^-1~d^1))
                            ) +
       facet_wrap(~factor(cluster),ncol=3) +
       theme(legend.title = element_text(size = 10),
