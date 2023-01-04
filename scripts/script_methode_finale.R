@@ -544,221 +544,221 @@ POC_flux(profile_data = read_csv("data/Chla_BBP_data/plotData.csv", show_col_typ
 
 
 
-AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
-  
-  I_plots <- list()
-  names <- c("(1) Austral HCB","(2) Austral MCB","(3) STZ","(4) PN","(5) AN")
-  
-  for (i in 1:length(unique(data_DOXY$cluster))){
-    
-    DOXY_profile_data <- data_DOXY %>%
-      filter(PARAM == "AOU", cluster == i) %>%
-      left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
-      left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
-      left_join(SIG_data %>% dplyr::select(jDay, PRES, SIG = value, cluster), by = c("jDay", "PRES", "cluster")) 
-      # mutate(depths_below_zp = NA)
-    # DOXY_profile_data$zp <- round(DOXY_profile_data$zp)
-    
-    
-    depths = DOXY_profile_data$PRES
-    dates = DOXY_profile_data$jDay
-    month = DOXY_profile_data$month
-    zp = DOXY_profile_data$zp
-    mld = DOXY_profile_data$mld
-    depth_bin = 50
-    SIG <- DOXY_profile_data$SIG +1000
-    values <- DOXY_profile_data$value * SIG
-    depths_below_zp = round(depths-zp)
-    
-    # definir prof max sous zp pour le cluster
-    prof_max <- 1000-max(zp)
-    
-    if(prof_max>850){
-      # analyse
-      depth_seq <- c("whole_column", "productive_layer", seq(0, 850-depth_bin, by = depth_bin))
-      depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 850, sep = "_"), depth_seq)
-      
-      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
-      
-    }else if(prof_max>800){
-      # analyse
-      depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
-      depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
-      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
-      
-    }else if(prof_max<800){
-      # analyse
-      depth_seq <- c("whole_column", "productive_layer", seq(0, 650-depth_bin, by = depth_bin))
-      depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 650, sep = "_"), depth_seq)}
-      # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)}
-    
-      
-    data_list_O2 <- data.frame(values, depths, dates, zp, mld, depths_below_zp) %>% 
-      arrange(depths_below_zp) %>%
-      # filter(between(depths_below_zp,0,as.numeric(last(depth_seq))+50)) %>%
-      split(f = .$depths_below_zp)
-    
-    
-    # following Su et al 2022
-    ZP=round(max(zp))+1
-    maxi=as.numeric(last(depth_seq))+50+ZP
-    resp_each_depth <- data_list_O2[ZP:maxi] %>%
-      llply(function(x){
-      metrics <- data.frame(x) %>%
-      dplyr::mutate(smoothed_values = smth(values, window = window, alpha = 2.5, method = "gaussian", tails = T)) %>% # smoothed data
-      dplyr::summarise(values=values,
-                       dates=dates,
-                       min_y = min(smoothed_values, na.rm=T), # minimum on smoothed data
-                       max_y = max(smoothed_values, na.rm=T), # maximum on smoothed data
-                       min_x = match(min(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(), # minimum on smoothed data
-                       max_x = match(max(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(), # maximum on smoothed data
-                       Dprod = if(min_x>max_x){Dprod = 365 + max_x - min_x} # productive period between min and max
-                       else if(min_x<max_x){Dprod = max_x - min_x},
-                       min_supp_max = if(min_x>max_x){min_supp_max = TRUE}
-                       else if(min_x<max_x){min_supp_max = FALSE}) %>%
-      dplyr::mutate(dates_recal = ifelse(min_supp_max==T & between(dates,0,max_x),dates+365,dates), # recal data if max is before min pretending continuous TS
-                      max_x_recal = ifelse(min_supp_max==T & between(dates,0,max_x),max_x+365,max_x)) %>%
-      dplyr::filter(dates_recal>min_x | dates_recal<max_x_recal) %>%
-      dplyr::mutate(slopes = summary(lm(values~ dates_recal, data = .))$coefficients[2]* (1/1.45) *10^-3 *12, # linear regression coeff on unsmoothed data and µmol/m3 O2 to mg C/m3
-                    intercept = summary(lm(values~ dates_recal, data = .))$coefficients[1],
-                    slope_annual = slopes * Dprod)
-      })
-     
-      respiration <- resp_each_depth %>% ldply(function(x){
-        values_to_plot <- data.frame(x) %>%
-          dplyr::summarise(R = unique(slopes),
-                           annual_R = unique(slope_annual))
-      })
-      
-      names(respiration)[1] <- "depths"
-      respiration$depths <- as.numeric(respiration$depths)
-      respiration <- respiration %>% dplyr::mutate(cluster=i)
-      
-      
-    ANCP <- data.frame(ANCP=rep(NA,length(depth_layers)), 
-                       depth=rep(NA,length(depth_layers)),
-                       resp=rep(NA,length(depth_layers)),
-                       cluster=rep(i,length(depth_layers)))
-   for(l in 1:length(depth_layers)){
-        if (grepl("depth", depth_layers[l])) {
-          min_depth_to_keep <- str_split(gsub("depth_", "", depth_layers[l]), "_", simplify = T)[,1] %>% as.numeric()
-          max_depth_to_keep <- str_split(gsub("depth_", "", depth_layers[l]), "_", simplify = T)[,2] %>% as.numeric()
-          index <- which(between(respiration$depths, min_depth_to_keep, max_depth_to_keep))
-          ANCP$resp[l] <- (respiration$R[index] * {c( diff(respiration$depths[index]), diff(respiration$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T) #mgC/m2/jour
-          ANCP$depth[l] <- min_depth_to_keep
-          ANCP$ANCP[l] <- (respiration$annual_R[index] * {c( diff(respiration$depths[index]), diff(respiration$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T)*10^-3 #gC/m2/an
-        }
-      }
-      
-    # agreger les slopes ensemble a chaque iterration pour avoir un fichier final
-    # avec tout
-    
-    if(i==1){
-      slopes_final <- ANCP
-      resp_final <- respiration
-    }
-    
-    if(i!=1){
-      slopes_final <- bind_rows(slopes_final, ANCP)
-      resp_final <- bind_rows(resp_final, respiration)
-    }
-    
-  }
-  
-  resp_each_depth_plot <- ggplot(data = resp_final, aes(x = depths, y = R, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
-    geom_line() +
-    # geom_errorbar(aes(ymin = estimate-sd, ymax = estimate+sd), width = 15) +
-    scale_x_reverse(name = "Pressure under Zp [dbar]", expand = c(0,0), limits = c(850,-10)) +
-    scale_y_continuous(name = expression(paste(R~"  [",mg~C~m^{-3}~d^{-1},"] ")), expand = c(0.02,0.02), limits = c(-.5, 10)) +
-    geom_hline(yintercept = 0, linetype = "dotted", color = "grey", size = 0.8) +
-    coord_flip() +
-    theme_bw() +
-  scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                    labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
-  scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                      labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
-
-  
-  Att_plots <- ggplot(data = slopes_final, aes(x = depth, y = resp, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
-    # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
-    geom_point() +
-    geom_line() +
-    # geom_point(shape=21, fill = colors, size=2) +
-    # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
-    # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
-    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
-    scale_y_continuous(name = expression(paste(Carbon~flux,"  [",mg~C~m^{-2}~d^{-1},"]")), expand = c(0,0),limits = c(0,1600)) +
-    coord_flip() +
-    # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
-    theme_bw() +
-    theme(axis.text = element_text(size = 11, colour = "black"),
-          axis.title = element_text(size = 11, colour = "black"),
-          axis.text.x=element_text(angle=0),
-          plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
-    scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                      labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
-    scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                        labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
-  
-  Att_plots_annual <- ggplot(data = slopes_final, aes(x = depth, y = ANCP, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
-    # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
-    geom_point() +
-    geom_line() +
-    # geom_point(shape=21, fill = colors, size=2) +
-    # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
-    # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
-    scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
-    scale_y_continuous(name = expression(paste(Annual~carbon~flux,"  [",g~C~m^{-2}~y^{-1},"]")), expand = c(0,0),limits = c(-5,250)) +
-    coord_flip() +
-    # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
-    theme_bw() +
-    theme(axis.text = element_text(size = 11, colour = "black"),
-          axis.title = element_text(size = 11, colour = "black"),
-          axis.text.x=element_text(angle=0),
-          plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
-    scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                      labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
-    scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
-                        labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
-  
-  
-  layout <- c(
-    area(1,1),
-    area(1,2),
-    area(1,3),
-    area(2,1),
-    area(2,2)
-  )
-  I_plots[[1]] <- I_plots[[1]] + theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-                                       axis.title.y.right = element_blank(),axis.text.y.right = element_blank())
-  I_plots[[2]] <- I_plots[[2]] + theme(axis.title.y.left = element_blank(), axis.title.x = element_blank(),
-                                       axis.text.x = element_blank(), axis.text.y.left = element_blank(),
-                                       axis.title.y.right = element_blank(),axis.text.y.right = element_blank())
-  I_plots[[3]] <- I_plots[[3]] + theme(axis.title.y.left = element_blank(),axis.text.y.left = element_blank(),
-                                       axis.title.x = element_blank())
-  I_plots[[4]] <- I_plots[[4]] + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank(),
-                                       axis.title.x = element_blank())
-  I_plots[[5]] <- I_plots[[5]] + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank())
-  
-  finalPlot_I <- wrap_plots(I_plots,design=layout) #+ plot_annotation(tag_levels = "1")
-  ggsave(plot = finalPlot_I,"figures/I_plots_AOU.png", width = 11.5, height = 5, dpi = 300)
-  
-  
-  ggsave(plot = Att_plots,"figures/Att_plots_AOU.png", width = 6, height = 6, dpi = 300)
-  write_csv(slopes_final, "data/slopes_AOU.csv")
-  
-  ggsave(plot = Att_plots_annual,"figures/Att_plots_annual_AOU.png", width = 6, height = 6, dpi = 300)
-  
-
-}
-
-
-AOU_flux(data_DOXY = read_csv("data/DOXY/plotData.csv") %>% arrange(cluster),
-         zp_data = read_csv("data/zp_data_all.csv") %>% arrange(cluster),
-         mld_data = read_csv("data/mld_data_all.csv") %>% arrange(cluster),
-         SIG_data = read_csv("data/Chla_BBP_data/plotData_env.csv") %>% filter(PARAM == "SIG") %>% arrange(cluster),
-         # metrics = read_csv("data/metrics_cluster.csv") %>% arrange(cluster),
-         window = 30)
+# AOU_flux <- function(data_DOXY, zp_data, mld_data, SIG_data, window, AOU_sd){
+#   
+#   I_plots <- list()
+#   names <- c("(1) Austral HCB","(2) Austral MCB","(3) STZ","(4) PN","(5) AN")
+#   
+#   for (i in 1:length(unique(data_DOXY$cluster))){
+#     
+#     DOXY_profile_data <- data_DOXY %>%
+#       filter(PARAM == "AOU", cluster == i) %>%
+#       left_join(zp_data %>% dplyr::select(jDay, PRES, zp = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+#       left_join(mld_data %>% dplyr::select(jDay, PRES, mld = value, cluster), by = c("jDay", "PRES", "cluster")) %>%
+#       left_join(SIG_data %>% dplyr::select(jDay, PRES, SIG = value, cluster), by = c("jDay", "PRES", "cluster")) 
+#       # mutate(depths_below_zp = NA)
+#     # DOXY_profile_data$zp <- round(DOXY_profile_data$zp)
+#     
+#     
+#     depths = DOXY_profile_data$PRES
+#     dates = DOXY_profile_data$jDay
+#     month = DOXY_profile_data$month
+#     zp = DOXY_profile_data$zp
+#     mld = DOXY_profile_data$mld
+#     depth_bin = 50
+#     SIG <- DOXY_profile_data$SIG +1000
+#     values <- DOXY_profile_data$value * SIG
+#     depths_below_zp = round(depths-zp)
+#     
+#     # definir prof max sous zp pour le cluster
+#     prof_max <- 1000-max(zp)
+#     
+#     if(prof_max>850){
+#       # analyse
+#       depth_seq <- c("whole_column", "productive_layer", seq(0, 850-depth_bin, by = depth_bin))
+#       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 850, sep = "_"), depth_seq)
+#       
+#       # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
+#       
+#     }else if(prof_max>800){
+#       # analyse
+#       depth_seq <- c("whole_column", "productive_layer", seq(0, 800-depth_bin, by = depth_bin))
+#       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 800, sep = "_"), depth_seq)
+#       # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)
+#       
+#     }else if(prof_max<800){
+#       # analyse
+#       depth_seq <- c("whole_column", "productive_layer", seq(0, 650-depth_bin, by = depth_bin))
+#       depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, 650, sep = "_"), depth_seq)}
+#       # depth_layers <- ifelse(numbers_only(depth_seq), paste("depth", depth_seq, (as.numeric(depth_seq)+depth_bin), sep = "_"), depth_seq)}
+#     
+#       
+#     data_list_O2 <- data.frame(values, depths, dates, zp, mld, depths_below_zp) %>% 
+#       arrange(depths_below_zp) %>%
+#       # filter(between(depths_below_zp,0,as.numeric(last(depth_seq))+50)) %>%
+#       split(f = .$depths_below_zp)
+#     
+#     
+#     # following Su et al 2022
+#     ZP=round(max(zp))+1
+#     maxi=as.numeric(last(depth_seq))+50+ZP
+#     resp_each_depth <- data_list_O2[ZP:maxi] %>%
+#       llply(function(x){
+#       metrics <- data.frame(x) %>%
+#       dplyr::mutate(smoothed_values = smth(values, window = window, alpha = 2.5, method = "gaussian", tails = T)) %>% # smoothed data
+#       dplyr::summarise(values=values,
+#                        dates=dates,
+#                        min_y = min(smoothed_values, na.rm=T), # minimum on smoothed data
+#                        max_y = max(smoothed_values, na.rm=T), # maximum on smoothed data
+#                        min_x = match(min(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(), # minimum on smoothed data
+#                        max_x = match(max(smoothed_values, na.rm=T),smoothed_values) %>% as.numeric(), # maximum on smoothed data
+#                        Dprod = if(min_x>max_x){Dprod = 365 + max_x - min_x} # productive period between min and max
+#                        else if(min_x<max_x){Dprod = max_x - min_x},
+#                        min_supp_max = if(min_x>max_x){min_supp_max = TRUE}
+#                        else if(min_x<max_x){min_supp_max = FALSE}) %>%
+#       dplyr::mutate(dates_recal = ifelse(min_supp_max==T & between(dates,0,max_x),dates+365,dates), # recal data if max is before min pretending continuous TS
+#                       max_x_recal = ifelse(min_supp_max==T & between(dates,0,max_x),max_x+365,max_x)) %>%
+#       dplyr::filter(dates_recal>min_x | dates_recal<max_x_recal) %>%
+#       dplyr::mutate(slopes = summary(lm(values~ dates_recal, data = .))$coefficients[2]* (1/1.45) *10^-3 *12, # linear regression coeff on unsmoothed data and µmol/m3 O2 to mg C/m3
+#                     intercept = summary(lm(values~ dates_recal, data = .))$coefficients[1],
+#                     slope_annual = slopes * Dprod)
+#       })
+#      
+#       respiration <- resp_each_depth %>% ldply(function(x){
+#         values_to_plot <- data.frame(x) %>%
+#           dplyr::summarise(R = unique(slopes),
+#                            annual_R = unique(slope_annual))
+#       })
+#       
+#       names(respiration)[1] <- "depths"
+#       respiration$depths <- as.numeric(respiration$depths)
+#       respiration <- respiration %>% dplyr::mutate(cluster=i)
+#       
+#       
+#     ANCP <- data.frame(ANCP=rep(NA,length(depth_layers)), 
+#                        depth=rep(NA,length(depth_layers)),
+#                        resp=rep(NA,length(depth_layers)),
+#                        cluster=rep(i,length(depth_layers)))
+#    for(l in 1:length(depth_layers)){
+#         if (grepl("depth", depth_layers[l])) {
+#           min_depth_to_keep <- str_split(gsub("depth_", "", depth_layers[l]), "_", simplify = T)[,1] %>% as.numeric()
+#           max_depth_to_keep <- str_split(gsub("depth_", "", depth_layers[l]), "_", simplify = T)[,2] %>% as.numeric()
+#           index <- which(between(respiration$depths, min_depth_to_keep, max_depth_to_keep))
+#           ANCP$resp[l] <- (respiration$R[index] * {c( diff(respiration$depths[index]), diff(respiration$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T) #mgC/m2/jour
+#           ANCP$depth[l] <- min_depth_to_keep
+#           ANCP$ANCP[l] <- (respiration$annual_R[index] * {c( diff(respiration$depths[index]), diff(respiration$depths[index]) %>% dplyr::last() )}) %>% sum(na.rm = T)*10^-3 #gC/m2/an
+#         }
+#       }
+#       
+#     # agreger les slopes ensemble a chaque iterration pour avoir un fichier final
+#     # avec tout
+#     
+#     if(i==1){
+#       slopes_final <- ANCP
+#       resp_final <- respiration
+#     }
+#     
+#     if(i!=1){
+#       slopes_final <- bind_rows(slopes_final, ANCP)
+#       resp_final <- bind_rows(resp_final, respiration)
+#     }
+#     
+#   }
+#   
+#   resp_each_depth_plot <- ggplot(data = resp_final, aes(x = depths, y = R, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
+#     geom_line() +
+#     # geom_errorbar(aes(ymin = estimate-sd, ymax = estimate+sd), width = 15) +
+#     scale_x_reverse(name = "Pressure under Zp [dbar]", expand = c(0,0), limits = c(850,-10)) +
+#     scale_y_continuous(name = expression(paste(R~"  [",mg~C~m^{-3}~d^{-1},"] ")), expand = c(0.02,0.02), limits = c(-.5, 10)) +
+#     geom_hline(yintercept = 0, linetype = "dotted", color = "grey", size = 0.8) +
+#     coord_flip() +
+#     theme_bw() +
+#   scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                     labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
+#   scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                       labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
+# 
+#   
+#   Att_plots <- ggplot(data = slopes_final, aes(x = depth, y = resp, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
+#     # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
+#     geom_point() +
+#     geom_line() +
+#     # geom_point(shape=21, fill = colors, size=2) +
+#     # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
+#     # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
+#     scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
+#     scale_y_continuous(name = expression(paste(Carbon~flux,"  [",mg~C~m^{-2}~d^{-1},"]")), expand = c(0,0),limits = c(0,1600)) +
+#     coord_flip() +
+#     # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
+#     theme_bw() +
+#     theme(axis.text = element_text(size = 11, colour = "black"),
+#           axis.title = element_text(size = 11, colour = "black"),
+#           axis.text.x=element_text(angle=0),
+#           plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
+#     scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                       labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
+#     scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                         labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
+#   
+#   Att_plots_annual <- ggplot(data = slopes_final, aes(x = depth, y = ANCP, group = cluster, fill = factor(cluster), colour = factor(cluster))) +
+#     # geom_ribbon(aes(ymin = slope_min, ymax = slope_max), alpha = 0.3, linetype = 0) +
+#     geom_point() +
+#     geom_line() +
+#     # geom_point(shape=21, fill = colors, size=2) +
+#     # geom_function(fun = f, args = list(a=a, b=b), color = "darkred", size = 1) +
+#     # geom_line(data = regression_data, aes(x = z, y = slope), size = 0.5) +
+#     scale_x_reverse(name = "profondeur en dessous de Zp [m]", expand = c(0,0), limits = c(850,0)) +
+#     scale_y_continuous(name = expression(paste(Annual~carbon~flux,"  [",g~C~m^{-2}~y^{-1},"]")), expand = c(0,0),limits = c(-5,250)) +
+#     coord_flip() +
+#     # geom_line(data = regression_data, aes(x=z, y=pred_slope), color = 'red')+
+#     theme_bw() +
+#     theme(axis.text = element_text(size = 11, colour = "black"),
+#           axis.title = element_text(size = 11, colour = "black"),
+#           axis.text.x=element_text(angle=0),
+#           plot.title = element_text(size=13, face="bold.italic", hjust = 0.5)) +
+#     scale_fill_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                       labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN")) +
+#     scale_colour_manual(name = element_blank(), breaks = c("1", "2", "3","4","5"), values=c("#CC0000","#00CC00","#FFCC00","#33CCFF", "#0066CC"),
+#                         labels = c("(1) Austral_HCB","(2) Austral_MCB","(3) STZ","(4) PN","(5) AN"))
+#   
+#   
+#   layout <- c(
+#     area(1,1),
+#     area(1,2),
+#     area(1,3),
+#     area(2,1),
+#     area(2,2)
+#   )
+#   I_plots[[1]] <- I_plots[[1]] + theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+#                                        axis.title.y.right = element_blank(),axis.text.y.right = element_blank())
+#   I_plots[[2]] <- I_plots[[2]] + theme(axis.title.y.left = element_blank(), axis.title.x = element_blank(),
+#                                        axis.text.x = element_blank(), axis.text.y.left = element_blank(),
+#                                        axis.title.y.right = element_blank(),axis.text.y.right = element_blank())
+#   I_plots[[3]] <- I_plots[[3]] + theme(axis.title.y.left = element_blank(),axis.text.y.left = element_blank(),
+#                                        axis.title.x = element_blank())
+#   I_plots[[4]] <- I_plots[[4]] + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank(),
+#                                        axis.title.x = element_blank())
+#   I_plots[[5]] <- I_plots[[5]] + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank())
+#   
+#   finalPlot_I <- wrap_plots(I_plots,design=layout) #+ plot_annotation(tag_levels = "1")
+#   ggsave(plot = finalPlot_I,"figures/I_plots_AOU.png", width = 11.5, height = 5, dpi = 300)
+#   
+#   
+#   ggsave(plot = Att_plots,"figures/Att_plots_AOU.png", width = 6, height = 6, dpi = 300)
+#   write_csv(slopes_final, "data/slopes_AOU.csv")
+#   
+#   ggsave(plot = Att_plots_annual,"figures/Att_plots_annual_AOU.png", width = 6, height = 6, dpi = 300)
+#   
+# 
+# }
+# 
+# 
+# AOU_flux(data_DOXY = read_csv("data/DOXY/plotData.csv") %>% arrange(cluster),
+#          zp_data = read_csv("data/zp_data_all.csv") %>% arrange(cluster),
+#          mld_data = read_csv("data/mld_data_all.csv") %>% arrange(cluster),
+#          SIG_data = read_csv("data/Chla_BBP_data/plotData_env.csv") %>% filter(PARAM == "SIG") %>% arrange(cluster),
+#          # metrics = read_csv("data/metrics_cluster.csv") %>% arrange(cluster),
+#          window = 30)
 
 DOXY_climato_flux(data_DOXY = read_csv("data/DOXY/plotData_climato_DOXY.csv") %>% arrange(cluster),
          zp_data = read_csv("data/zp_data_all.csv") %>% arrange(cluster),

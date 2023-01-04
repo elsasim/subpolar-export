@@ -200,7 +200,7 @@ interpolateData <- function(inputDirectory = "data/finalCSV/",
                 longitude = median(longitude,na.rm=TRUE))
 
     write_csv(metaData,
-              "data/timeseries_metadata_MLD_ISO.csv")
+              "data/timeseries_metadata_ISO_MLD.csv")
   }
 
   if(matrixType=="profiles"){
@@ -662,11 +662,11 @@ plotMaker <- function(plotData,
                     y = month,
                     fill = value)) +
       scale_fill_distiller(palette = "Spectral",
-                          breaks = c(-5,0,5),
-                          limits=c(-5,5),
-                          oob = scales::squish,
-                          labels = c("<-5","0",">5"),
-                          name = expression(DOXY~anomaly(µmol~kg^-1~d^1))
+                          # breaks = c(-5,0,5),
+                          # limits=c(-5,5),
+                          # oob = scales::squish,
+                          # labels = c("<-5","0",">5"),
+                          # name = expression(DOXY~anomaly(µmol~kg^-1~d^1))
                            ) +
       facet_wrap(~factor(cluster),ncol=3) +
       theme(legend.title = element_text(size = 10),
@@ -860,7 +860,7 @@ plotMaker <- function(plotData,
 
     ggsave(plot = avgPlot,
            paste("figures/",unique(plotData$PARAM)[i],outputname,".png",sep=""),
-           width = 11.5, height = 6)
+           width = 11.5, height = 3.5)
   }
 }
 

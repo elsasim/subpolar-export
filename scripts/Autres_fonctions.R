@@ -193,7 +193,7 @@ split_svdMatrix <- function(svdMatrix,weightings_clusters,outputname){
       #   }
       # }
       # BL <- BL[!is.na(BL)]
-      svdMatrix <- inputMatrix %>% select(jDay, PRES, PARAM, floats)
+      svdMatrix_temp <- svdMatrix %>% select(jDay, PRES, PARAM, floats)
       
       svdMatrix_temp <- svdMatrix %>% select(jDay, PRES, PARAM, floats)
       # svdMatrix_final<-svdMatrix[, apply(svdMatrix, 2, function(x) !all(is.na(x)))]
@@ -302,13 +302,13 @@ split_svdMatrix(svdMatrix<- read_csv("data/svdMatrix_timeseries_MLD_ISO.csv"),
 MLD_ISO_ZP_SIG <- function(plotData){
   MLD <- filter(plotData, PARAM == "MLD_003")
   ISO_1 <- filter(plotData, PARAM == "ISO_1")
-  ZP <- filter(plotData, PARAM == "ISO_1")
+  ZP <- ISO_1
   SIG <- filter(plotData, PARAM == "SIG")
   ZP$value <- pmax(ISO_1$value, MLD$value)
 
   write_csv(MLD,"data/plotData_MLD.csv")
   write_csv(ISO_1,"data/plotData_ISO_1.csv")
-  write_csv(ZP,"data/plotData_ZP.csv")
+  write_csv(ZP,"data/sep_Austral/env/plotData_ZP_Ind.csv")
   write_csv(SIG,"data/plotData_SIG.csv")
   
 }
